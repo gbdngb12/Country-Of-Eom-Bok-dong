@@ -10,6 +10,8 @@
 
 MPU6050 mpu;
 
+#define MAGNET 8 //OUT 핀 설정(디지털신호 받는 핀)
+
 #define OUTPUT_READABLE_YAWPITCHROLL
 
 
@@ -85,7 +87,7 @@ void setup() {
   // initialize serial communication
   // (115200 chosen because it is required for Teapot Demo output, but it's
   // really up to you depending on your project)
-  bluetooth.begin(9600); // 블루투스 통신 초기화
+  Serial3.begin(9600); // 블루투스 통신 초기화
   Serial.begin(9600);
   while (!Serial); // wait for Leonardo enumeration, others continue immediately
 
@@ -155,6 +157,8 @@ void setup() {
 
   // configure LED for output
   pinMode(LED_PIN, OUTPUT);
+  //Magnet
+  pinMode(MAGNET, INPUT);
 
 }
 
@@ -165,8 +169,8 @@ void setup() {
 
 
 void loop() {
-  if (bluetooth.available()) {
-    int tmp = bluetooth.read();
+  if (Serial3.available()) {
+    int tmp = Serial3.read();
     if (tmp == '0') {
       lock = false;
     }
@@ -179,30 +183,6 @@ void loop() {
   if (!dmpReady) return;
   // read a packet from FIFO
   if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer)) { // Get the Latest packet
-#ifdef OUTPUT_READABLE_QUATERNION
-    // display quaternion values in easy matrix form: w x y z
-    mpu.dmpGetQuaternion(&q, fifoBuffer);
-    Serial.print("quat\t");
-    Serial.print(q.w);
-    Serial.print("\t");
-    Serial.print(q.x);
-    Serial.print("\t");
-    Serial.print(q.y);
-    Serial.print("\t");
-    Serial.println(q.z);
-#endif
-
-#ifdef OUTPUT_READABLE_EULER
-    // display Euler angles in degrees
-    mpu.dmpGetQuaternion(&q, fifoBuffer);
-    mpu.dmpGetEuler(euler, &q);
-    Serial.print("euler\t");
-    Serial.print(euler[0] * 180 / M_PI);
-    Serial.print("\t");
-    Serial.print(euler[1] * 180 / M_PI);
-    Serial.print("\t");
-    Serial.println(euler[2] * 180 / M_PI);
-#endif
 
 #ifdef OUTPUT_READABLE_YAWPITCHROLL
     // display Euler angles in degrees
@@ -212,27 +192,37 @@ void loop() {
     float x = ypr[0] * 180 / M_PI;
     float y = ypr[1] * 180 / M_PI;
     float z = ypr[2] * 180 / M_PI;
-    if (lock == true && flag == false) {
+    if (lock == true && flag == false) {//Lock 건다.
       //초기값 저장
       loc.x = x;
       loc.y = y;
       loc.z = z;
-      //bluetooth.println("초기값! :x "+String(loc.x) + "y: "+String(loc.y) + "z: "+ String(loc.z));
+      
       //자석값 세팅 필요함
+      //if (digitalRead(MAGNET ) == LOW) {
+        //Serial.println("MAGNET ON");
+      //  loc.isMagnetic
+      //}
+      loc.isMagnetic = digitalRead(MAGNET);
+      Serial3.println("초기값! :x "+String(loc.x) + "y: "+String(loc.y) + "z: "+ String(loc.z)+ "자석: " + String(loc.isMagnetic));
 
       flag = true;
     }
     //값 비교
-    if (lock == true && flag == true) {
+    if (lock == true && flag == true) {//Lock이 걸려있을때 값 확인
+      //가속도 센서 확인
       if (abs(loc.x - x) > xd) {
-        //bluetooth.println("x: " +String(x)+ "이상!");
+        Serial3.println("x: " +String(x)+ "이상!");
       }
       if (abs(loc.y - y) > yd) {
-        //bluetooth.println("y: "+ String(y) + "이상!");
+        Serial3.println("y: "+ String(y) + "이상!");
       }
       if (abs(loc.z - z) > zd) {
-        //bluetooth.println("z: " + String(z) + "이상!");
-        bluetooth.println("35.133,129.104");
+        Serial3.println("z: " + String(z) + "이상!");
+      }
+      //자석값 확인
+      if (digitalRead(MAGNET) != loc.isMagnetic) {
+        Serial3.println("자석 값 이상!");
       }
     }
     //잠금해제
@@ -240,36 +230,6 @@ void loop() {
       flag = false;
     }
 
-#endif
-
-#ifdef OUTPUT_READABLE_REALACCEL
-    // display real acceleration, adjusted to remove gravity
-    mpu.dmpGetQuaternion(&q, fifoBuffer);
-    mpu.dmpGetAccel(&aa, fifoBuffer);
-    mpu.dmpGetGravity(&gravity, &q);
-    mpu.dmpGetLinearAccel(&aaReal, &aa, &gravity);
-    Serial.print("areal\t");
-    Serial.print(aaReal.x);
-    Serial.print("\t");
-    Serial.print(aaReal.y);
-    Serial.print("\t");
-    Serial.println(aaReal.z);
-#endif
-
-#ifdef OUTPUT_READABLE_WORLDACCEL
-    // display initial world-frame acceleration, adjusted to remove gravity
-    // and rotated based on known orientation from quaternion
-    mpu.dmpGetQuaternion(&q, fifoBuffer);
-    mpu.dmpGetAccel(&aa, fifoBuffer);
-    mpu.dmpGetGravity(&gravity, &q);
-    mpu.dmpGetLinearAccel(&aaReal, &aa, &gravity);
-    mpu.dmpGetLinearAccelInWorld(&aaWorld, &aaReal, &q);
-    //Serial.print("aworld\t");
-    //Serial.print(aaWorld.x);
-    //Serial.print("\t");
-    //Serial.print(aaWorld.y);
-    //Serial.print("\t");
-    //Serial.println(aaWorld.z);
 #endif
 
 #ifdef OUTPUT_TEAPOT
