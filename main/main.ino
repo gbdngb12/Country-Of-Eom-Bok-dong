@@ -1,12 +1,5 @@
 #include "I2Cdev.h"
 
-//Arduino Uno Bluetooth
-#include <SoftwareSerial.h>
-
-#define BT_RXD 8
-#define BT_TXD 7
-SoftwareSerial bluetooth(BT_RXD, BT_TXD);
-//
 
 #include "MPU6050_6Axis_MotionApps20.h"
 
@@ -61,7 +54,7 @@ bool lock = false;
 bool flag = false;
 
 typedef struct location {
-  float x,y,z;
+  float x, y, z;
   float lat, lon;
   bool isMagnetic;
 
@@ -174,10 +167,10 @@ void setup() {
 void loop() {
   if (bluetooth.available()) {
     int tmp = bluetooth.read();
-    if(tmp == '0') {
-       lock = false;
+    if (tmp == '0') {
+      lock = false;
     }
-    else if(tmp == '1') {
+    else if (tmp == '1') {
       lock = true;
     }
   }
@@ -226,23 +219,24 @@ void loop() {
       loc.z = z;
       //bluetooth.println("초기값! :x "+String(loc.x) + "y: "+String(loc.y) + "z: "+ String(loc.z));
       //자석값 세팅 필요함
+
       flag = true;
     }
     //값 비교
-    if(lock == true && flag == true) {
-      if(abs(loc.x - x) > xd) {
+    if (lock == true && flag == true) {
+      if (abs(loc.x - x) > xd) {
         //bluetooth.println("x: " +String(x)+ "이상!");
       }
-      if(abs(loc.y - y) > yd) {
+      if (abs(loc.y - y) > yd) {
         //bluetooth.println("y: "+ String(y) + "이상!");
       }
-      if(abs(loc.z -z) > zd) {
+      if (abs(loc.z - z) > zd) {
         //bluetooth.println("z: " + String(z) + "이상!");
         bluetooth.println("35.133,129.104");
       }
     }
     //잠금해제
-    if(lock == false) {
+    if (lock == false) {
       flag = false;
     }
 
