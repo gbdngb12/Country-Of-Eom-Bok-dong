@@ -1,4 +1,7 @@
 #include "I2Cdev.h"
+#include <TinyGPS.h>
+TinyGPS gps;
+
 
 
 #include "MPU6050_6Axis_MotionApps20.h"
@@ -160,12 +163,31 @@ void setup() {
   //Magnet
   pinMode(MAGNET, INPUT);
 
+  //GPS
+  //Serial2.begin(9600);
+  //Serial2.setTimeout(10);
+
+  //gps = TinyGPS();
+
 }
 
 // ================================================================
 // ===                    MAIN PROGRAM LOOP                     ===
 // ================================================================
 
+void sendGpsLocation(TinyGPS &gps, struct location &loc) {
+  if (Serial2.available()) {
+    char c = Serial2.read();
+    if (gps.encode(c)) {
+      gps.f_get_position(&loc.lat, &loc.lon);
+      //Serial3.print("lat: ",);
+      //Serial3.print(loc.lat, 5);
+      //Serial3.print(", ");
+      //Serial3.println(loc.lon, 5);
+      Serial3.println(loc.lat, loc.lon);
+    }
+  }
+}
 
 
 void loop() {
@@ -192,19 +214,16 @@ void loop() {
     float x = ypr[0] * 180 / M_PI;
     float y = ypr[1] * 180 / M_PI;
     float z = ypr[2] * 180 / M_PI;
-    if (lock == true && flag == false) {//Lock 건다.
+    if (lock == true && flag == false) {//Lock
       //초기값 저장
       loc.x = x;
       loc.y = y;
       loc.z = z;
-      
-      //자석값 세팅 필요함
-      //if (digitalRead(MAGNET ) == LOW) {
-        //Serial.println("MAGNET ON");
-      //  loc.isMagnetic
-      //}
+
+      //자석값 저장
       loc.isMagnetic = digitalRead(MAGNET);
-      Serial3.println("초기값! :x "+String(loc.x) + "y: "+String(loc.y) + "z: "+ String(loc.z)+ "자석: " + String(loc.isMagnetic));
+      Serial3.println("초기값! :x " + String(loc.x) + "y: " + String(loc.y) + "z: " + String(loc.z) + "자석: " + String(loc.isMagnetic));
+
 
       flag = true;
     }
@@ -212,18 +231,23 @@ void loop() {
     if (lock == true && flag == true) {//Lock이 걸려있을때 값 확인
       //가속도 센서 확인
       if (abs(loc.x - x) > xd) {
-        Serial3.println("x: " +String(x)+ "이상!");
+        //Serial3.println("x: " +String(x)+ "이상!");
+        //sendGpsLocation(gps, loc);
       }
       if (abs(loc.y - y) > yd) {
-        Serial3.println("y: "+ String(y) + "이상!");
+        //Serial3.println("y: "+ String(y) + "이상!");
+        //sendGpsLocation(gps, loc);
       }
       if (abs(loc.z - z) > zd) {
-        Serial3.println("z: " + String(z) + "이상!");
+        //Serial3.println("z: " + String(z) + "이상!");
+        //sendGpsLocation(gps, loc);
       }
       //자석값 확인
       if (digitalRead(MAGNET) != loc.isMagnetic) {
-        Serial3.println("자석 값 이상!");
+        //Serial3.println("자석 값 이상!");
+        //sendGpsLocation(gps, loc);
       }
+      //GPS 위치 전송
     }
     //잠금해제
     if (lock == false) {
