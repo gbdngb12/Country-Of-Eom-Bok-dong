@@ -1,6 +1,6 @@
 #include "I2Cdev.h"
-
-
+#include <TinyGPS.h>
+TinyGPS gps;
 #include "MPU6050_6Axis_MotionApps20.h"
 
 #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
@@ -76,6 +76,10 @@ float zd = 10;
 // ================================================================
 
 void setup() {
+
+  Serial2.begin(9600);
+  gps = TinyGPS();
+  
   // join I2C bus (I2Cdev library doesn't do this automatically)
 #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
   Wire.begin();
@@ -169,6 +173,19 @@ void setup() {
 
 
 void loop() {
+  while (Serial2.available())    // While there is data on the RX
+  {
+    Serial.print("I am IN");
+    char c = Serial2.read();    // load the data into a variable...
+
+    if (gps.encode(c))     // if there is a new valid sentence...
+    {
+      Serial.print("I am func");
+      getgps();         // then grab the data.
+    }
+
+  }
+
   if (Serial3.available()) {
     int tmp = Serial3.read();
     if (tmp == '0') {
@@ -197,14 +214,14 @@ void loop() {
       loc.x = x;
       loc.y = y;
       loc.z = z;
-      
+
       //자석값 세팅 필요함
       //if (digitalRead(MAGNET ) == LOW) {
-        //Serial.println("MAGNET ON");
+      //Serial.println("MAGNET ON");
       //  loc.isMagnetic
       //}
       loc.isMagnetic = digitalRead(MAGNET);
-      Serial3.println("초기값! :x "+String(loc.x) + "y: "+String(loc.y) + "z: "+ String(loc.z)+ "자석: " + String(loc.isMagnetic));
+      Serial3.println("초기값! :x " + String(loc.x) + "y: " + String(loc.y) + "z: " + String(loc.z) + "자석: " + String(loc.isMagnetic));
 
       flag = true;
     }
@@ -212,10 +229,10 @@ void loop() {
     if (lock == true && flag == true) {//Lock이 걸려있을때 값 확인
       //가속도 센서 확인
       if (abs(loc.x - x) > xd) {
-        Serial3.println("x: " +String(x)+ "이상!");
+        Serial3.println("x: " + String(x) + "이상!");
       }
       if (abs(loc.y - y) > yd) {
-        Serial3.println("y: "+ String(y) + "이상!");
+        Serial3.println("y: " + String(y) + "이상!");
       }
       if (abs(loc.z - z) > zd) {
         Serial3.println("z: " + String(z) + "이상!");
@@ -250,4 +267,25 @@ void loop() {
     blinkState = !blinkState;
     digitalWrite(LED_PIN, blinkState);
   }
+}
+
+
+// The getgps function will get and print the values we want.
+void getgps()
+{
+  // To get all of the data into varialbes that you can use in your code,
+  // all you need to do is define variables and query the object for the
+  // data. To see the complete list of functions see keywords.txt file in
+  // the TinyGPS and NewSoftSerial libs.
+
+  // Define the variables that will be used
+  // float latitude, longitude;
+  // Then call this function
+  gps.f_get_position(&(loc.lat), &(loc.lon));
+  // You can now print variables latitude and longitude
+  Serial.print("Lat/Long: ");
+  Serial.print(loc.lat, 5);
+  Serial.print(", ");
+  Serial.println(loc.lon, 5);
+ 
 }
