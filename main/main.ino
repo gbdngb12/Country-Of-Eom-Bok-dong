@@ -96,6 +96,7 @@ class FooThread : public Thread
 {
   public:
     FooThread(int id);
+    static int threadCount;
   protected:
     bool loop();
   private:
@@ -105,27 +106,36 @@ class FooThread : public Thread
 FooThread::FooThread(int id)
 {
   this->id = id;
+  threadCount++;
 }
+static int FooThread::FooThread::threadCount = 0;
 
 bool FooThread::loop()
 {
+  Serial.println(FooThread::FooThread::threadCount);
   if (this->id == 0) {
-
+    mutex = true;
 
 
     // Die if requested:
-    if (kill_flag || lock == false)`
+    if (kill_flag || lock == false) {
+      noTone(12);
+      threadCount--;
       return false;
+    }
+      
 
     int toneVal;
     float sinVal;
-    for (int x = 0; x < 180; x++) {
+    for(int x = 0; x < 20; x++) {
+      for (int x = 0; x < 360; x++) {
       sinVal = (sin(x * (3.1412 / 180)));
       toneVal = 2000 + (int(sinVal * 1000));
       tone(12, toneVal);
-      sleep(5);
-      //delay(2);
+
     }
+    }
+    noTone(12);
     return true;
   } else if (this->id == 1) {
     if (kill_flag)
@@ -201,9 +211,13 @@ bool FooThread::loop()
           //bluetooth.println("35.133,129.104");
           mutex = false;
         }
-        if (!mutex) {
-          main_thread_list->add_thread(new FooThread(0));
+        
+        if(FooThread::FooThread::threadCount < 2) {
+          if (!mutex) {
+            main_thread_list->add_thread(new FooThread(0));
+          }  
         }
+        
       }
       //잠금해제
       if (lock == false) {
