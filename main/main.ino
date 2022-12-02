@@ -1,3 +1,6 @@
+#include <mthread.h>
+
+//------Data Structure--------
 #include "I2Cdev.h"
 
 //Arduino Uno Bluetooth
@@ -45,6 +48,22 @@ float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gra
 // packet structure for InvenSense teapot demo
 uint8_t teapotPacket[14] = { '$', 0x02, 0, 0, 0, 0, 0, 0, 0, 0, 0x00, 0x00, '\r', '\n' };
 
+//피에조 핀 번호
+int piezoPin = 12;
+bool isReady = false;
+bool mutex = true;
+
+
+//void playPiezo() {
+//  int toneVal;
+//  float sinVal;
+//  for (int x = 0; x < 180; x++) {
+//    sinVal = (sin(x * (3.1412 / 180)));
+//    toneVal = 2000 + (int(sinVal * 1000));
+//    tone(12, toneVal);
+//    delay(2);
+//  }
+//}
 
 
 // ================================================================
@@ -56,12 +75,8 @@ void dmpDataReady() {
   mpuInterrupt = true;
 }
 
-//------Data Structure--------
-bool lock = false;
-bool flag = false;
-
 typedef struct location {
-  float x,y,z;
+  float x, y, z;
   float lat, lon;
   bool isMagnetic;
 
@@ -74,6 +89,182 @@ float yd = 10;
 float zd = 10;
 
 //------Data Structure--------
+bool lock = false;
+bool flag = false;
+
+class FooThread : public Thread
+{
+  public:
+    FooThread(int id);
+  protected:
+    bool loop();
+  private:
+    int id;
+};
+
+FooThread::FooThread(int id)
+{
+  this->id = id;
+}
+
+bool FooThread::loop()
+{
+  if (this->id == 0) {
+
+
+
+    // Die if requested:
+    if (kill_flag || lock == false)`
+      return false;
+
+    int toneVal;
+    float sinVal;
+    for (int x = 0; x < 180; x++) {
+      sinVal = (sin(x * (3.1412 / 180)));
+      toneVal = 2000 + (int(sinVal * 1000));
+      tone(12, toneVal);
+      sleep(5);
+      //delay(2);
+    }
+    return true;
+  } else if (this->id == 1) {
+    if (kill_flag)
+      return false;
+    if (bluetooth.available()) {
+      int tmp = bluetooth.read();
+      if (tmp == '0') {
+        lock = false;
+      }
+      else if (tmp == '1') {
+        lock = true;
+      }
+    }
+    // if programming failed, don't try to do anything
+    delay(1000);
+    if (!dmpReady) return;
+    // read a packet from FIFO
+    if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer)) { // Get the Latest packet
+#ifdef OUTPUT_READABLE_QUATERNION
+      // display quaternion values in easy matrix form: w x y z
+      mpu.dmpGetQuaternion(&q, fifoBuffer);
+      Serial.print("quat\t");
+      Serial.print(q.w);
+      Serial.print("\t");
+      Serial.print(q.x);
+      Serial.print("\t");
+      Serial.print(q.y);
+      Serial.print("\t");
+      Serial.println(q.z);
+#endif
+
+#ifdef OUTPUT_READABLE_EULER
+      // display Euler angles in degrees
+      mpu.dmpGetQuaternion(&q, fifoBuffer);
+      mpu.dmpGetEuler(euler, &q);
+      Serial.print("euler\t");
+      Serial.print(euler[0] * 180 / M_PI);
+      Serial.print("\t");
+      Serial.print(euler[1] * 180 / M_PI);
+      Serial.print("\t");
+      Serial.println(euler[2] * 180 / M_PI);
+#endif
+
+#ifdef OUTPUT_READABLE_YAWPITCHROLL
+      // display Euler angles in degrees
+      mpu.dmpGetQuaternion(&q, fifoBuffer);
+      mpu.dmpGetGravity(&gravity, &q);
+      mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
+      float x = ypr[0] * 180 / M_PI;
+      float y = ypr[1] * 180 / M_PI;
+      float z = ypr[2] * 180 / M_PI;
+      if (lock == true && flag == false) {
+        //초기값 저장
+        loc.x = x;
+        loc.y = y;
+        loc.z = z;
+        bluetooth.println("초기값! :x " + String(loc.x) + "y: " + String(loc.y) + "z: " + String(loc.z));
+        //자석값 세팅 필요함
+        flag = true;
+      }
+      //값 비교
+      if (lock == true && flag == true) {
+        if (abs(loc.x - x) > xd) {
+          bluetooth.println("x: " + String(x) + "이상!");
+          mutex = false;
+        }
+        if (abs(loc.y - y) > yd) {
+          bluetooth.println("y: " + String(y) + "이상!");
+          mutex = false;
+        }
+        if (abs(loc.z - z) > zd) {
+          bluetooth.println("z: " + String(z) + "이상!");
+          //bluetooth.println("35.133,129.104");
+          mutex = false;
+        }
+        if (!mutex) {
+          main_thread_list->add_thread(new FooThread(0));
+        }
+      }
+      //잠금해제
+      if (lock == false) {
+        flag = false;
+      }
+
+#endif
+
+#ifdef OUTPUT_READABLE_REALACCEL
+      // display real acceleration, adjusted to remove gravity
+      mpu.dmpGetQuaternion(&q, fifoBuffer);
+      mpu.dmpGetAccel(&aa, fifoBuffer);
+      mpu.dmpGetGravity(&gravity, &q);
+      mpu.dmpGetLinearAccel(&aaReal, &aa, &gravity);
+      Serial.print("areal\t");
+      Serial.print(aaReal.x);
+      Serial.print("\t");
+      Serial.print(aaReal.y);
+      Serial.print("\t");
+      Serial.println(aaReal.z);
+#endif
+
+#ifdef OUTPUT_READABLE_WORLDACCEL
+      // display initial world-frame acceleration, adjusted to remove gravity
+      // and rotated based on known orientation from quaternion
+      mpu.dmpGetQuaternion(&q, fifoBuffer);
+      mpu.dmpGetAccel(&aa, fifoBuffer);
+      mpu.dmpGetGravity(&gravity, &q);
+      mpu.dmpGetLinearAccel(&aaReal, &aa, &gravity);
+      mpu.dmpGetLinearAccelInWorld(&aaWorld, &aaReal, &q);
+      //Serial.print("aworld\t");
+      //Serial.print(aaWorld.x);
+      //Serial.print("\t");
+      //Serial.print(aaWorld.y);
+      //Serial.print("\t");
+      //Serial.println(aaWorld.z);
+#endif
+
+#ifdef OUTPUT_TEAPOT
+      // display quaternion values in InvenSense Teapot demo format:
+      teapotPacket[2] = fifoBuffer[0];
+      teapotPacket[3] = fifoBuffer[1];
+      teapotPacket[4] = fifoBuffer[4];
+      teapotPacket[5] = fifoBuffer[5];
+      teapotPacket[6] = fifoBuffer[8];
+      teapotPacket[7] = fifoBuffer[9];
+      teapotPacket[8] = fifoBuffer[12];
+      teapotPacket[9] = fifoBuffer[13];
+      Serial.write(teapotPacket, 14);
+      teapotPacket[11]++; // packetCount, loops at 0xFF on purpose
+#endif
+
+      // blink LED to indicate activity
+      blinkState = !blinkState;
+      digitalWrite(LED_PIN, blinkState);
+    }
+
+    return true;
+  }
+}
+
 
 
 // ================================================================
@@ -81,6 +272,7 @@ float zd = 10;
 // ================================================================
 
 void setup() {
+  pinMode(piezoPin, OUTPUT);
   // join I2C bus (I2Cdev library doesn't do this automatically)
 #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
   Wire.begin();
@@ -162,138 +354,10 @@ void setup() {
 
   // configure LED for output
   pinMode(LED_PIN, OUTPUT);
+  main_thread_list->add_thread(new FooThread(1));
 
 }
 
 // ================================================================
 // ===                    MAIN PROGRAM LOOP                     ===
 // ================================================================
-
-
-
-void loop() {
-  if (bluetooth.available()) {
-    int tmp = bluetooth.read();
-    if(tmp == '0') {
-       lock = false;
-    }
-    else if(tmp == '1') {
-      lock = true;
-    }
-  }
-  // if programming failed, don't try to do anything
-  delay(1000);
-  if (!dmpReady) return;
-  // read a packet from FIFO
-  if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer)) { // Get the Latest packet
-#ifdef OUTPUT_READABLE_QUATERNION
-    // display quaternion values in easy matrix form: w x y z
-    mpu.dmpGetQuaternion(&q, fifoBuffer);
-    Serial.print("quat\t");
-    Serial.print(q.w);
-    Serial.print("\t");
-    Serial.print(q.x);
-    Serial.print("\t");
-    Serial.print(q.y);
-    Serial.print("\t");
-    Serial.println(q.z);
-#endif
-
-#ifdef OUTPUT_READABLE_EULER
-    // display Euler angles in degrees
-    mpu.dmpGetQuaternion(&q, fifoBuffer);
-    mpu.dmpGetEuler(euler, &q);
-    Serial.print("euler\t");
-    Serial.print(euler[0] * 180 / M_PI);
-    Serial.print("\t");
-    Serial.print(euler[1] * 180 / M_PI);
-    Serial.print("\t");
-    Serial.println(euler[2] * 180 / M_PI);
-#endif
-
-#ifdef OUTPUT_READABLE_YAWPITCHROLL
-    // display Euler angles in degrees
-    mpu.dmpGetQuaternion(&q, fifoBuffer);
-    mpu.dmpGetGravity(&gravity, &q);
-    mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
-    float x = ypr[0] * 180 / M_PI;
-    float y = ypr[1] * 180 / M_PI;
-    float z = ypr[2] * 180 / M_PI;
-    if (lock == true && flag == false) {
-      //초기값 저장
-      loc.x = x;
-      loc.y = y;
-      loc.z = z;
-      bluetooth.println("초기값! :x "+String(loc.x) + "y: "+String(loc.y) + "z: "+ String(loc.z));
-      //자석값 세팅 필요함
-      flag = true;
-    }
-    //값 비교
-    if(lock == true && flag == true) {
-      if(abs(loc.x - x) > xd) {
-        bluetooth.println("x: " +String(x)+ "이상!");
-      }
-      if(abs(loc.y - y) > yd) {
-        bluetooth.println("y: "+ String(y) + "이상!");
-      }
-      if(abs(loc.z -z) > zd) {
-        bluetooth.println("z: " + String(z) + "이상!");
-        //bluetooth.println("35.133,129.104");
-      }
-    }
-    //잠금해제
-    if(lock == false) {
-      flag = false;
-    }
-
-#endif
-
-#ifdef OUTPUT_READABLE_REALACCEL
-    // display real acceleration, adjusted to remove gravity
-    mpu.dmpGetQuaternion(&q, fifoBuffer);
-    mpu.dmpGetAccel(&aa, fifoBuffer);
-    mpu.dmpGetGravity(&gravity, &q);
-    mpu.dmpGetLinearAccel(&aaReal, &aa, &gravity);
-    Serial.print("areal\t");
-    Serial.print(aaReal.x);
-    Serial.print("\t");
-    Serial.print(aaReal.y);
-    Serial.print("\t");
-    Serial.println(aaReal.z);
-#endif
-
-#ifdef OUTPUT_READABLE_WORLDACCEL
-    // display initial world-frame acceleration, adjusted to remove gravity
-    // and rotated based on known orientation from quaternion
-    mpu.dmpGetQuaternion(&q, fifoBuffer);
-    mpu.dmpGetAccel(&aa, fifoBuffer);
-    mpu.dmpGetGravity(&gravity, &q);
-    mpu.dmpGetLinearAccel(&aaReal, &aa, &gravity);
-    mpu.dmpGetLinearAccelInWorld(&aaWorld, &aaReal, &q);
-    //Serial.print("aworld\t");
-    //Serial.print(aaWorld.x);
-    //Serial.print("\t");
-    //Serial.print(aaWorld.y);
-    //Serial.print("\t");
-    //Serial.println(aaWorld.z);
-#endif
-
-#ifdef OUTPUT_TEAPOT
-    // display quaternion values in InvenSense Teapot demo format:
-    teapotPacket[2] = fifoBuffer[0];
-    teapotPacket[3] = fifoBuffer[1];
-    teapotPacket[4] = fifoBuffer[4];
-    teapotPacket[5] = fifoBuffer[5];
-    teapotPacket[6] = fifoBuffer[8];
-    teapotPacket[7] = fifoBuffer[9];
-    teapotPacket[8] = fifoBuffer[12];
-    teapotPacket[9] = fifoBuffer[13];
-    Serial.write(teapotPacket, 14);
-    teapotPacket[11]++; // packetCount, loops at 0xFF on purpose
-#endif
-
-    // blink LED to indicate activity
-    blinkState = !blinkState;
-    digitalWrite(LED_PIN, blinkState);
-  }
-}
