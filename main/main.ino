@@ -1,12 +1,12 @@
 #include "I2Cdev.h"
 
+
 //Arduino Uno Bluetooth
 #include <SoftwareSerial.h>
 
 #define BT_RXD 8
 #define BT_TXD 7
 SoftwareSerial bluetooth(BT_RXD, BT_TXD);
-//
 
 #include "MPU6050_6Axis_MotionApps20.h"
 
