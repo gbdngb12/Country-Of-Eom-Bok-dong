@@ -5,7 +5,7 @@
 
 #define BT_RXD 8
 #define BT_TXD 7
-SoftwareSerial bluetooth(BT_RXD, BT_TXD);
+SoftwareSerial bluetooth(BT_TXD, BT_RXD);
 //
 
 #include "MPU6050_6Axis_MotionApps20.h"
@@ -224,21 +224,21 @@ void loop() {
       loc.x = x;
       loc.y = y;
       loc.z = z;
-      //bluetooth.println("초기값! :x "+String(loc.x) + "y: "+String(loc.y) + "z: "+ String(loc.z));
+      bluetooth.println("초기값! :x "+String(loc.x) + "y: "+String(loc.y) + "z: "+ String(loc.z));
       //자석값 세팅 필요함
       flag = true;
     }
     //값 비교
     if(lock == true && flag == true) {
       if(abs(loc.x - x) > xd) {
-        //bluetooth.println("x: " +String(x)+ "이상!");
+        bluetooth.println("x: " +String(x)+ "이상!");
       }
       if(abs(loc.y - y) > yd) {
-        //bluetooth.println("y: "+ String(y) + "이상!");
+        bluetooth.println("y: "+ String(y) + "이상!");
       }
       if(abs(loc.z -z) > zd) {
-        //bluetooth.println("z: " + String(z) + "이상!");
-        bluetooth.println("35.133,129.104");
+        bluetooth.println("z: " + String(z) + "이상!");
+        //bluetooth.println("35.133,129.104");
       }
     }
     //잠금해제
