@@ -1,4 +1,15 @@
 #include "I2Cdev.h"
+//Arduino Uno Bluetooth
+#include <SoftwareSerial.h>
+#define BT_RXD 8
+#define BT_TXD 7
+SoftwareSerial bluetooth(BT_RXD, BT_TXD);
+
+#define GPS_RXD 6
+#define GPS_TXD 5
+SoftwareSerial gpsSerial(GPS_RXD, GPS_TXD);
+
+
 #include <TinyGPS.h>
 TinyGPS gps;
 #include "MPU6050_6Axis_MotionApps20.h"
@@ -10,7 +21,7 @@ TinyGPS gps;
 
 MPU6050 mpu;
 
-#define MAGNET 8 //OUT 핀 설정(디지털신호 받는 핀)
+#define MAGNET 4 //OUT 핀 설정(디지털신호 받는 핀)
 
 #define OUTPUT_READABLE_YAWPITCHROLL
 
@@ -77,7 +88,7 @@ float zd = 10;
 
 void setup() {
 
-  Serial2.begin(9600);
+  gpsSerial.begin(9600);
   gps = TinyGPS();
   
   // join I2C bus (I2Cdev library doesn't do this automatically)
@@ -91,7 +102,7 @@ void setup() {
   // initialize serial communication
   // (115200 chosen because it is required for Teapot Demo output, but it's
   // really up to you depending on your project)
-  Serial3.begin(9600); // 블루투스 통신 초기화
+  bluetooth.begin(9600); // 블루투스 통신 초기화
   Serial.begin(9600);
   while (!Serial); // wait for Leonardo enumeration, others continue immediately
 
@@ -173,10 +184,10 @@ void setup() {
 
 
 void loop() {
-  while (Serial2.available())    // While there is data on the RX
+  while (gpsSerial.available())    // While there is data on the RX
   {
     Serial.print("I am IN");
-    char c = Serial2.read();    // load the data into a variable...
+    char c = gpsSerial.read();    // load the data into a variable...
 
     if (gps.encode(c))     // if there is a new valid sentence...
     {
@@ -186,8 +197,8 @@ void loop() {
 
   }
 
-  if (Serial3.available()) {
-    int tmp = Serial3.read();
+  if (bluetooth.available()) {
+    int tmp = bluetooth.read();
     if (tmp == '0') {
       lock = false;
     }
@@ -221,7 +232,7 @@ void loop() {
       //  loc.isMagnetic
       //}
       loc.isMagnetic = digitalRead(MAGNET);
-      Serial3.println("초기값! :x " + String(loc.x) + "y: " + String(loc.y) + "z: " + String(loc.z) + "자석: " + String(loc.isMagnetic));
+      bluetooth.println("초기값! :x " + String(loc.x) + "y: " + String(loc.y) + "z: " + String(loc.z) + "자석: " + String(loc.isMagnetic));
 
       flag = true;
     }
@@ -229,17 +240,17 @@ void loop() {
     if (lock == true && flag == true) {//Lock이 걸려있을때 값 확인
       //가속도 센서 확인
       if (abs(loc.x - x) > xd) {
-        Serial3.println("x: " + String(x) + "이상!");
+        bluetooth.println("x: " + String(x) + "이상!");
       }
       if (abs(loc.y - y) > yd) {
-        Serial3.println("y: " + String(y) + "이상!");
+        bluetooth.println("y: " + String(y) + "이상!");
       }
       if (abs(loc.z - z) > zd) {
-        Serial3.println("z: " + String(z) + "이상!");
+        bluetooth.println("z: " + String(z) + "이상!");
       }
       //자석값 확인
       if (digitalRead(MAGNET) != loc.isMagnetic) {
-        Serial3.println("자석 값 이상!");
+        bluetooth.println("자석 값 이상!");
       }
     }
     //잠금해제
