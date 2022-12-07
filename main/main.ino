@@ -1,19 +1,11 @@
-//#include <SoftwareSerial.h>
-#include <TinyGPS.h>
 #include <Adafruit_MPU6050.h>
 #include <Adafruit_Sensor.h>
 #include <Wire.h>
 #include <mthread.h>
 
 #define LED_PIN 13
-//#define BT_RXD 8
-//#define BT_TXD 7
-//#define GPS_RXD 6
-//#define GPS_TXD 5
 #define MAGNET 4
 #define piezo 12
-
-//SoftwareSerial Serial3(BT_RXD, BT_TXD);
 
 bool lock = false;
 bool flag = false;
@@ -26,7 +18,7 @@ typedef struct location {
 
 location loc;
 Adafruit_MPU6050 mpu;
-TinyGPS gps;
+//TinyGPS gps;
 
 class LoopThread : public Thread {
   public:
@@ -46,7 +38,7 @@ LoopThread::LoopThread(int id) {
   this->id = id;
   threadCount++;
   if (this->id == 0) { //main Thread
-    Serial2.begin(9600);
+    //Serial2.begin(9600);
     Serial3.begin(9600);
     //gps = TinyGPS();
     if (!mpu.begin()) {
@@ -77,14 +69,16 @@ bool LoopThread::loop() {
       int tmp = Serial3.read();
       if (tmp == '0') {
         lock = false;
+        Serial3.println("false");
         digitalWrite(LED_PIN, LOW);
       }
       else if (tmp == '1') {
         lock = true;
+        Serial3.println("true");
         digitalWrite(LED_PIN, HIGH);
       }
     }
-    if (Serial2.available() > 0) {
+    /*if (Serial2.available() > 0) {
       //Serial3.println("Reading..");
       char c = Serial2.read();
       if (gps.encode(c)) {
@@ -94,7 +88,7 @@ bool LoopThread::loop() {
         //Serial3.print(", ");
         //Serial3.println(loc.lon, 5);
       }
-    }
+    }*/
     if (lock == true && flag == false) {
       //Serial3.print("lock!");
       loc.x = g.gyro.x;
@@ -114,20 +108,16 @@ bool LoopThread::loop() {
       if (abs(loc.x - x) >= diff) {
         Serial3.println("x: " + String(g.gyro.x) + "이상!");
         isPiezo = true;
-        printgps();
       } else if (abs(loc.y - y) >= diff) {
         Serial3.println("y: " + String(g.gyro.y) + "이상!");
         isPiezo = true;
-        printgps();
       } else if (abs(loc.z - z) >= diff) {
         Serial3.println("z: " + String(g.gyro.z) + "이상!");
         isPiezo = true;
-        printgps();
       }
       if (digitalRead(MAGNET) != loc.isMagnetic) {
         Serial3.println("자석 값 이상!");
         isPiezo = true;
-        printgps();
       }
       if ((LoopThread::LoopThread::threadCount < 2) && (isPiezo)) {
         main_thread_list->add_thread(new LoopThread(1)); // create piezo Thread
@@ -162,11 +152,4 @@ bool LoopThread::loop() {
 
 void setup() {
   main_thread_list->add_thread(new LoopThread(0));//Main Thread
-}
-
-void printgps() {
-  Serial3.print("Lat/Long: ");
-  Serial3.print(loc.lat, 5);
-  Serial3.print(", ");
-  Serial3.println(loc.lon, 5);
 }
