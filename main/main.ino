@@ -9,7 +9,7 @@
 
 bool lock = false;
 bool flag = false;
-float diff = 1.5;
+float diff = 1.0;
 typedef struct location {
   float x, y, z;
   float lat, lon;
@@ -87,6 +87,7 @@ bool LoopThread::loop() {
       sensors_event_t a, g, temp; //센서값 변수선언
       mpu.getEvent(&a, &g, &temp); //센서값 갱신;
 
+      float acc = a.acc.x;
       float x = g.gyro.x;
       float y = g.gyro.y;
       float z = g.gyro.z;
